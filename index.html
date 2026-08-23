@@ -43,6 +43,7 @@ text-transform:uppercase;font-weight:400}
 font-family:"Playfair Display",Georgia,serif}
 h2+.sub{border-bottom:1px solid var(--bronze);padding-bottom:13px}
 .empty{color:var(--mut);padding:22px;background:var(--card);border-radius:12px;border:1px solid var(--line);font-style:italic}
+.cnt{color:var(--accent);font-variant-numeric:tabular-nums;font-size:11.5px}
 .newwrap{max-height:min(72vh,760px);overflow-y:auto;overscroll-behavior:contain;
 border:1px solid var(--line);border-radius:12px;padding:16px;background:var(--soft)}
 .newwrap::-webkit-scrollbar{width:9px}
@@ -211,7 +212,7 @@ body.hascart{padding-bottom:76px}
   <div class="htext">
   <div class="eyebrow">Wholesale Beauty Distribution</div>
   <h1>קטלוג תום — מיאמי ביוטי הולסייל</h1>
-  <div class="when">עודכן 23/08/2026 בשעה 10:08 ·
+  <div class="when">עודכן 23/08/2026 בשעה 10:15 ·
   מינימום הזמנה 3,000 דולר · מכירה בקופסאות ·
   שער 2.992</div>
   </div>
@@ -4995,6 +4996,54 @@ body.hascart{padding-bottom:76px}
   var VERDICT='';
   var cards=[].slice.call(document.querySelectorAll('#grid .card'));
   var grid=$('grid');
+
+  // בודק כרטיס מול מצב סינון נתון. הופרד לפונקציה כדי שנוכל לשאול
+  // "כמה היו נשארים אילו בחרתי כאן משהו אחר" — וזה מה שמזין את המספרים
+  // שליד כל אפשרות.
+  function match(c,S){
+    var d=c.dataset;
+    if(S.verdict && d.verdict!==S.verdict) return false;
+    if(S.m>0 && !(+d.margin>=S.m)) return false;
+    if(S.cat && d.cat!==S.cat) return false;
+    if(S.br && d.brand!==S.br) return false;
+    if(S.st && d.stock!==S.st) return false;
+    if(S.us && d.ustier!==S.us) return false;
+    if(S.fresh){ var fs=d.firstseen||''; if(!fs || fs<S.fresh) return false; }
+    if(S.best && d.best!=='1') return false;
+    if(S.rev && +d.reviews<=0) return false;
+    if(S.il && d.il!=='1') return false;
+    if(S.hide && d.pending==='1') return false;
+    if(S.note && d.note!=='1') return false;
+    if(S.ship && d.ship!=='1') return false;
+    if(S.anch && d.conf==='נמוכה') return false;
+    if(S.wrn && d.warn!=='1') return false;
+    if(S.q && d.name.toLowerCase().indexOf(S.q)<0) return false;
+    return true;
+  }
+  function n(S){var k=0; for(var i=0;i<cards.length;i++) if(match(cards[i],S)) k++; return k}
+  function withKey(S,k,v){var o={}; for(var x in S) o[x]=S[x]; o[k]=v; return o}
+
+  // כמה יישארו לכל אפשרות — מחושב מול שאר המסננים הפעילים, לא מול הכול
+  function counts(S){
+    ['fcat','fbrand','fstock','fus','ffresh'].forEach(function(id){
+      var key={fcat:'cat',fbrand:'br',fstock:'st',fus:'us',ffresh:'fresh'}[id];
+      [].forEach.call($(id).options,function(o){
+        if(o.dataset.base===undefined) o.dataset.base=o.textContent.replace(/\s*\(\d+\)\s*$/,'');
+        o.textContent=o.dataset.base+' ('+n(withKey(S,key,o.value))+')';
+      });
+    });
+    [['fbest','best'],['frev','rev'],['fil','il'],['fhide','hide'],
+     ['fnote','note'],['fship','ship'],['fanch','anch'],['fwarn','wrn']].forEach(function(pair){
+      var el=$(pair[0]), lab=el.parentNode;
+      if(lab.dataset.base===undefined) lab.dataset.base=lab.textContent.trim().replace(/\s*\(\d+\)\s*$/,'');
+      var span=lab.querySelector('.cnt');
+      if(!span){span=document.createElement('span'); span.className='cnt'; lab.appendChild(span)}
+      span.textContent=' ('+n(withKey(S,pair[1],true))+')';
+    });
+    [].forEach.call(document.querySelectorAll('#chips .chip'),function(c){
+      var b=c.querySelector('b'); if(b) b.textContent=n(withKey(S,'verdict',c.dataset.v));
+    });
+  }
   function apply(){
     var m=+$('fmargin').value, cat=$('fcat').value,
         br=$('fbrand').value, st=$('fstock').value, us=$('fus').value, fresh=$('ffresh').value,
@@ -5003,30 +5052,10 @@ body.hascart{padding-bottom:76px}
         wrn=$('fwarn').checked,
         q=$('fq').value.trim().toLowerCase(), sort=$('fsort').value;
     $('fmarginv').textContent=m+'%';
-    var vis=[];
-    cards.forEach(function(c){
-      var d=c.dataset;
-      var mg = +d.margin;
-      var ok = true;
-      if(VERDICT && d.verdict!==VERDICT) ok=false;
-      if(m>0 && !(mg>=m)) ok=false;
-      if(cat && d.cat!==cat) ok=false;
-      if(br && d.brand!==br) ok=false;
-      if(st && d.stock!==st) ok=false;
-      if(us && d.ustier!==us) ok=false;
-      if(fresh){ var fs=d.firstseen||''; if(!fs || fs<fresh) ok=false; }
-      if(best && d.best!=='1') ok=false;
-      if(rev && +d.reviews<=0) ok=false;
-      if(il && d.il!=='1') ok=false;
-      if(hide && d.pending==='1') ok=false;
-      if(note && d.note!=='1') ok=false;
-      if(ship && d.ship!=='1') ok=false;
-      if(anch && d.conf==='נמוכה') ok=false;
-      if(wrn && d.warn!=='1') ok=false;
-      if(q && d.name.toLowerCase().indexOf(q)<0) ok=false;
-      c.style.display = ok ? '' : 'none';
-      if(ok) vis.push(c);
-    });
+    var S={verdict:VERDICT,m:m,cat:cat,br:br,st:st,us:us,fresh:fresh,best:best,rev:rev,
+           il:il,hide:hide,note:note,ship:ship,anch:anch,wrn:wrn,q:q};
+    var vis=cards.filter(function(c){var ok=match(c,S); c.style.display=ok?'':'none'; return ok});
+    counts(S);
     if(sort==='fresh'){
       vis.sort(function(a,b){
         var x=a.dataset.firstseen||'', y=b.dataset.firstseen||'';
